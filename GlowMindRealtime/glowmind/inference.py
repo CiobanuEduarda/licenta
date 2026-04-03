@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 import cv2
+import numpy as np
 import torch
 import torchvision.transforms as T
 from torchvision.models import resnet50
@@ -77,6 +78,36 @@ def load_face_cascade() -> cv2.CascadeClassifier:
             "Install OpenCV data files or provide a valid cascade path."
         )
     return cascade
+
+
+def select_primary_face(
+    faces: np.ndarray,
+    frame_width: int,
+    frame_height: int,
+) -> tuple[int, int, int, int]:
+    """Choose one face when Haar returns multiple detections.
+
+    Prefer the largest bounding box (typically the nearer / main subject); break
+    ties by proximity to the frame center to reduce flicker when two faces are
+    similar in size.
+    """
+    if faces.ndim == 1:
+        faces = faces.reshape(1, -1)
+    fw = float(frame_width)
+    fh = float(frame_height)
+    cx0 = fw / 2.0
+    cy0 = fh / 2.0
+
+    def sort_key(row: np.ndarray) -> tuple[float, float]:
+        x, y, w, h = float(row[0]), float(row[1]), float(row[2]), float(row[3])
+        area = w * h
+        fcx = x + w / 2.0
+        fcy = y + h / 2.0
+        dist_sq = (fcx - cx0) ** 2 + (fcy - cy0) ** 2
+        return (area, -dist_sq)
+
+    best = max(faces, key=sort_key)
+    return int(best[0]), int(best[1]), int(best[2]), int(best[3])
 
 
 def face_transform() -> T.Compose:

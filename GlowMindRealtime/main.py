@@ -25,7 +25,13 @@ from glowmind.emotion import (
     va_to_emotion,
 )
 from glowmind.hardware import open_serial, send_rgb
-from glowmind.inference import build_va_resnet, face_transform, load_face_cascade, load_model_weights
+from glowmind.inference import (
+    build_va_resnet,
+    face_transform,
+    load_face_cascade,
+    load_model_weights,
+    select_primary_face,
+)
 
 
 def run(settings: Settings) -> None:
@@ -68,7 +74,8 @@ def run(settings: Settings) -> None:
             faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
             if len(faces) > 0:
-                x, y, w, h = faces[0]
+                h_frame, w_frame = frame.shape[:2]
+                x, y, w, h = select_primary_face(faces, w_frame, h_frame)
                 face = frame[y : y + h, x : x + w]
                 inp = transform(face).unsqueeze(0).to(device)
 
