@@ -1,0 +1,4 @@
+torch>=2.0
+torchvision>=0.15
+opencv-python>=4.5
+pyserial>=3.5
