@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import time
+from collections import deque
 
 import cv2
 import torch
 
 from glowmind.config import Settings
-from glowmind.display import draw_face_overlay, draw_led_preview, open_capture
+from glowmind.display import (
+    draw_circumplex_mood_ring,
+    draw_face_overlay,
+    draw_led_preview,
+    open_capture,
+)
 from glowmind.emotion import (
     EMOTIONS,
     ema,
@@ -45,6 +51,9 @@ def run(settings: Settings) -> None:
 
     v_s = 0.0
     a_s = 0.0
+    va_trail: deque[tuple[float, float]] = deque(maxlen=48)
+    last_v_plot = 0.0
+    last_a_plot = 0.0
     current_rgb = EMOTIONS["neutral"]
     start_time = time.time()
 
@@ -91,6 +100,8 @@ def run(settings: Settings) -> None:
                 send_rgb(ser, r, g, b)
 
                 draw_face_overlay(frame, x, y, w, h, emotion, v_s, a_s)
+                last_v_plot, last_a_plot = v_display, a_display
+                va_trail.append((v_display, a_display))
             else:
                 target_rgb = EMOTIONS["neutral"]
                 current_rgb = lerp_rgb(current_rgb, target_rgb, 0.02)
@@ -99,6 +110,13 @@ def run(settings: Settings) -> None:
                 send_rgb(ser, r, g, b)
 
             draw_led_preview(frame, r, g, b)
+            draw_circumplex_mood_ring(
+                frame,
+                last_v_plot,
+                last_a_plot,
+                va_trail,
+                active=len(faces) > 0,
+            )
 
             cv2.imshow("GlowMind", frame)
             if cv2.waitKey(1) & 0xFF == 27:
