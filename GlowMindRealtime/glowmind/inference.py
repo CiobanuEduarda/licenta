@@ -18,7 +18,7 @@ def build_va_resnet(device: str) -> torch.nn.Module:
         torch.nn.Linear(model.fc.in_features, 512),
         torch.nn.BatchNorm1d(512),
         torch.nn.ReLU(inplace=True),
-        torch.nn.Dropout(p=0.2),
+        torch.nn.Dropout(p=0.3),
         torch.nn.Linear(512, 128),
         torch.nn.ReLU(inplace=True),
         torch.nn.Linear(128, 2),
@@ -108,6 +108,31 @@ def select_primary_face(
 
     best = max(faces, key=sort_key)
     return int(best[0]), int(best[1]), int(best[2]), int(best[3])
+
+
+def expand_face_bbox(
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    frame_width: int,
+    frame_height: int,
+    buffer: float = 0.1,
+) -> tuple[int, int, int, int]:
+    """Pad the detection box like AffectNet training (face box + margin)."""
+    x_min = max(0, int(x - w * buffer))
+    y_min = max(0, int(y - h * buffer))
+    x_max = min(frame_width, int(x + w * (1.0 + buffer)))
+    y_max = min(frame_height, int(y + h * (1.0 + buffer)))
+    out_w = max(1, x_max - x_min)
+    out_h = max(1, y_max - y_min)
+    return x_min, y_min, out_w, out_h
+
+
+def forward_va(model: torch.nn.Module, batch: torch.Tensor) -> torch.Tensor:
+    """Run the VA head and clamp to [-1, 1] (matches fine-tune eval)."""
+    out = model(batch)
+    return torch.clamp(out, -1.0, 1.0)
 
 
 def face_transform() -> T.Compose:

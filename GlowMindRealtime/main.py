@@ -34,6 +34,30 @@ from glowmind.inference import (
 )
 
 
+def _expand_face_bbox(
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    frame_width: int,
+    frame_height: int,
+    buffer: float,
+) -> tuple[int, int, int, int]:
+    """Pad Haar box like AffectNet training (margin around face)."""
+    x_min = max(0, int(x - w * buffer))
+    y_min = max(0, int(y - h * buffer))
+    x_max = min(frame_width, int(x + w * (1.0 + buffer)))
+    y_max = min(frame_height, int(y + h * (1.0 + buffer)))
+    out_w = max(1, x_max - x_min)
+    out_h = max(1, y_max - y_min)
+    return x_min, y_min, out_w, out_h
+
+
+def _forward_va(model: torch.nn.Module, batch: torch.Tensor) -> torch.Tensor:
+    out = model(batch)
+    return torch.clamp(out, -1.0, 1.0)
+
+
 def run(settings: Settings) -> None:
     device = settings.device
     model = build_va_resnet(device)
@@ -76,11 +100,14 @@ def run(settings: Settings) -> None:
             if len(faces) > 0:
                 h_frame, w_frame = frame.shape[:2]
                 x, y, w, h = select_primary_face(faces, w_frame, h_frame)
-                face = frame[y : y + h, x : x + w]
+                px, py, pw, ph = _expand_face_bbox(
+                    x, y, w, h, w_frame, h_frame, settings.face_bbox_buffer
+                )
+                face = frame[py : py + ph, px : px + pw]
                 inp = transform(face).unsqueeze(0).to(device)
 
                 with torch.no_grad():
-                    output = model(inp)
+                    output = _forward_va(model, inp)
 
                 valence = float(output[0, 0].item())
                 arousal = float(output[0, 1].item())
