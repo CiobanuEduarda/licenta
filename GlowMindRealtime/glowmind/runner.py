@@ -34,6 +34,7 @@ from glowmind.inference import (
     load_model_weights,
     select_primary_face,
 )
+from glowmind.stream_state import LiveState
 
 log = logging.getLogger(__name__)
 
@@ -47,19 +48,25 @@ def _forward_va(model: torch.nn.Module, batch: torch.Tensor) -> torch.Tensor:
     return torch.clamp(out, -1.0, 1.0)
 
 
-def run(settings: Settings, *, led: LedSink | None = None) -> None:
+def run(
+    settings: Settings,
+    *,
+    led: LedSink | None = None,
+    live_state: LiveState | None = None,
+) -> None:
     """Run the realtime pipeline. Always closes the active sink when finished (including on error).
 
     Pass a custom :class:`LedSink` (e.g. :class:`NullLedSink`) to skip serial or for tests.
+    Optional :class:`LiveState` is updated every frame for REST/WebSocket clients.
     """
     sink: LedSink = open_led_sink(settings) if led is None else led
     try:
-        _run_loop(settings, sink)
+        _run_loop(settings, sink, live_state)
     finally:
         sink.close()
 
 
-def _run_loop(settings: Settings, led: LedSink) -> None:
+def _run_loop(settings: Settings, led: LedSink, live_state: LiveState | None) -> None:
     device = settings.device
     model = build_va_resnet(device)
     load_model_weights(model, settings.model_weights, device)
@@ -133,12 +140,36 @@ def _run_loop(settings: Settings, led: LedSink) -> None:
                 draw_face_overlay(frame, x, y, w, h, emotion, v_s, a_s)
                 last_v_plot, last_a_plot = v_display, a_display
                 va_trail.append((v_display, a_display))
+                if live_state is not None:
+                    live_state.update(
+                        face_active=True,
+                        emotion=emotion,
+                        valence_smoothed=v_s,
+                        arousal_smoothed=a_s,
+                        valence_display=v_display,
+                        arousal_display=a_display,
+                        led_r=r,
+                        led_g=g,
+                        led_b=b,
+                    )
             else:
                 target_rgb = EMOTIONS["neutral"]
                 current_rgb = lerp_rgb(current_rgb, target_rgb, 0.02)
                 r, g, b = pulse_neutral_idle(current_rgb, t)
                 r, g, b = scale_for_led(r, g, b, settings.led_brightness)
                 led.send_rgb(r, g, b)
+                if live_state is not None:
+                    live_state.update(
+                        face_active=False,
+                        emotion="neutral",
+                        valence_smoothed=v_s,
+                        arousal_smoothed=a_s,
+                        valence_display=last_v_plot,
+                        arousal_display=last_a_plot,
+                        led_r=r,
+                        led_g=g,
+                        led_b=b,
+                    )
 
             draw_led_preview(frame, r, g, b)
             draw_circumplex_mood_ring(

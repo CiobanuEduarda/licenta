@@ -12,10 +12,12 @@ dependencies = [
   "torchvision>=0.15",
   "opencv-python>=4.5",
   "pyserial>=3.5",
+  "fastapi>=0.100",
+  "uvicorn[standard]>=0.22",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "httpx>=0.24"]
 
 [project.scripts]
 glowmind = "glowmind.cli:main"

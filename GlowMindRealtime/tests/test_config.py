@@ -24,6 +24,10 @@ def test_from_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
         "EMA_ALPHA",
         "TRANSITION_SPEED",
         "FRAME_BLEND",
+        "API_ENABLED",
+        "API_HOST",
+        "API_PORT",
+        "API_CORS_ORIGINS",
     ):
         monkeypatch.delenv(key, raising=False)
     s = Settings.from_env()
@@ -51,3 +55,23 @@ def test_from_env_rejects_ema_alpha_zero(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("EMA_ALPHA", "0")
     with pytest.raises(ValueError, match="ema_alpha"):
         Settings.from_env()
+
+
+def test_from_env_rejects_api_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("API_PORT", "70000")
+    with pytest.raises(ValueError, match="api_port"):
+        Settings.from_env()
+
+
+def test_from_env_api_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("API_ENABLED", "false")
+    s = Settings.from_env()
+    assert s.api_enabled is False
+
+
+def test_cors_origin_list() -> None:
+    assert Settings(api_cors_origins="*").cors_origin_list() == ["*"]
+    assert Settings(api_cors_origins="http://a, http://b").cors_origin_list() == [
+        "http://a",
+        "http://b",
+    ]

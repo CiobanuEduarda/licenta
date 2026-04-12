@@ -30,6 +30,20 @@ def _env_float(key: str, default: float) -> float:
         raise ValueError(f"Invalid float for {key}={raw!r}") from e
 
 
+def _env_bool(key: str, default: bool) -> bool:
+    raw = os.environ.get(key)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _parse_cors_origins(value: str) -> list[str]:
+    v = value.strip()
+    if v == "*":
+        return ["*"]
+    return [x.strip() for x in v.split(",") if x.strip()]
+
+
 def _validate(settings: Settings) -> None:
     if settings.face_bbox_buffer < 0:
         raise ValueError("face_bbox_buffer must be >= 0")
@@ -45,6 +59,8 @@ def _validate(settings: Settings) -> None:
         raise ValueError("camera indices must be >= 0")
     if settings.serial_baud <= 0:
         raise ValueError("serial_baud must be > 0")
+    if settings.api_enabled and not (1 <= settings.api_port <= 65535):
+        raise ValueError("api_port must be between 1 and 65535")
 
 
 @dataclass(frozen=True)
@@ -67,6 +83,11 @@ class Settings:
     ema_alpha: float = 0.25
     transition_speed: float = 4.0
     frame_blend: float = 0.033  # ~30 FPS assumption for color lerp
+    # Local HTTP API (REST + WebSocket); bind is localhost-oriented by default.
+    api_enabled: bool = True
+    api_host: str = "127.0.0.1"
+    api_port: int = 8765
+    api_cors_origins: str = "*"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -87,6 +108,13 @@ class Settings:
             ema_alpha=_env_float("EMA_ALPHA", 0.25),
             transition_speed=_env_float("TRANSITION_SPEED", 4.0),
             frame_blend=_env_float("FRAME_BLEND", 0.033),
+            api_enabled=_env_bool("API_ENABLED", True),
+            api_host=_env_str("API_HOST", "127.0.0.1"),
+            api_port=_env_int("API_PORT", 8765),
+            api_cors_origins=_env_str("API_CORS_ORIGINS", "*"),
         )
         _validate(s)
         return s
+
+    def cors_origin_list(self) -> list[str]:
+        return _parse_cors_origins(self.api_cors_origins)
