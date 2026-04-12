@@ -24,6 +24,10 @@ glowmind = "glowmind.cli:main"
 
 [tool.setuptools]
 packages = ["glowmind"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+glowmind = ["dashboard.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

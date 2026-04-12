@@ -34,6 +34,7 @@ from glowmind.inference import (
     load_model_weights,
     select_primary_face,
 )
+from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
 
 log = logging.getLogger(__name__)
@@ -53,20 +54,27 @@ def run(
     *,
     led: LedSink | None = None,
     live_state: LiveState | None = None,
+    session_stats: SessionStats | None = None,
 ) -> None:
     """Run the realtime pipeline. Always closes the active sink when finished (including on error).
 
     Pass a custom :class:`LedSink` (e.g. :class:`NullLedSink`) to skip serial or for tests.
     Optional :class:`LiveState` is updated every frame for REST/WebSocket clients.
+    Optional :class:`SessionStats` accumulates segment timers when a session is started via the API.
     """
     sink: LedSink = open_led_sink(settings) if led is None else led
     try:
-        _run_loop(settings, sink, live_state)
+        _run_loop(settings, sink, live_state, session_stats)
     finally:
         sink.close()
 
 
-def _run_loop(settings: Settings, led: LedSink, live_state: LiveState | None) -> None:
+def _run_loop(
+    settings: Settings,
+    led: LedSink,
+    live_state: LiveState | None,
+    session_stats: SessionStats | None,
+) -> None:
     device = settings.device
     model = build_va_resnet(device)
     load_model_weights(model, settings.model_weights, device)
@@ -100,8 +108,9 @@ def _run_loop(settings: Settings, led: LedSink, live_state: LiveState | None) ->
             t = time.time() - start_time
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+            has_face = len(faces) > 0
 
-            if len(faces) > 0:
+            if has_face:
                 h_frame, w_frame = frame.shape[:2]
                 x, y, w, h = select_primary_face(faces, w_frame, h_frame)
                 px, py, pw, ph = expand_face_bbox(
@@ -177,8 +186,14 @@ def _run_loop(settings: Settings, led: LedSink, live_state: LiveState | None) ->
                 last_v_plot,
                 last_a_plot,
                 va_trail,
-                active=len(faces) > 0,
+                active=has_face,
             )
+
+            if session_stats is not None:
+                if has_face:
+                    session_stats.tick(face_active=True, emotion=emotion)
+                else:
+                    session_stats.tick(face_active=False, emotion="neutral")
 
             cv2.imshow("GlowMind", frame)
             if cv2.waitKey(1) & 0xFF == 27:

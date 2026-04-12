@@ -9,6 +9,7 @@ import sys
 from glowmind.api import create_app, start_api_server_thread
 from glowmind.config import Settings
 from glowmind.runner import CameraUnavailableError, run
+from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
 
 log = logging.getLogger(__name__)
@@ -26,13 +27,15 @@ def main() -> None:
         sys.exit(2)
 
     live: LiveState | None = None
+    session_stats: SessionStats | None = None
     if settings.api_enabled:
         live = LiveState()
-        app = create_app(live, cors_origins=settings.cors_origin_list())
+        session_stats = SessionStats()
+        app = create_app(live, session_stats, cors_origins=settings.cors_origin_list())
         start_api_server_thread(settings.api_host, settings.api_port, app)
 
     try:
-        run(settings, live_state=live)
+        run(settings, live_state=live, session_stats=session_stats)
     except FileNotFoundError as e:
         log.error("%s", e)
         sys.exit(1)

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GlowMind — live</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    /* Warmer palette: espresso-burgundy, coral-rose, golden peach, warm ivory, linen stone */
+    :root {
+      color-scheme: light;
+      --burgundy: #4a211a;
+      --rose: #c24e56;
+      --peach: #eab892;
+      --cream: #fff4e8;
+      --grey: #e8dbd2;
+      --muted: #735a52;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: ui-sans-serif, system-ui, sans-serif;
+      background: var(--grey);
+      color: var(--burgundy);
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .romance-header {
+      width: 100%;
+      background: var(--rose);
+      color: #fff;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(74, 33, 26, 0.14);
+    }
+    .romance-header h1 {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .page-body {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+      gap: 1rem;
+    }
+    .card {
+      background: var(--cream);
+      border-radius: 14px;
+      padding: 1.75rem 2rem;
+      width: min(100%, 380px);
+      box-shadow: 0 8px 32px rgba(74, 33, 26, 0.07);
+      border: 1px solid rgba(74, 33, 26, 0.07);
+    }
+    .emotion { font-size: 2.25rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.5rem; color: var(--rose); }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(194, 78, 86, 0.14);
+      color: var(--rose);
+      margin-bottom: 1rem;
+    }
+    .row { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.9rem;
+           padding: 0.35rem 0; border-bottom: 1px solid rgba(74, 33, 26, 0.07); }
+    .row:last-child { border-bottom: none; }
+    .label { color: var(--muted); }
+    .row span:last-child { color: var(--burgundy); font-variant-numeric: tabular-nums; font-weight: 500; }
+    .swatch {
+      width: 100%; height: 56px; border-radius: 10px; margin-top: 1rem;
+      border: 1px solid rgba(74, 33, 26, 0.1);
+    }
+    .status { margin-top: 1rem; font-size: 0.75rem; color: var(--muted); text-align: center; }
+    .err { color: var(--rose); }
+    .sub { font-size: 0.75rem; color: var(--burgundy); margin: 0.75rem 0 0.35rem; font-weight: 600; opacity: 0.9; }
+    .note { font-size: 0.68rem; color: var(--muted); line-height: 1.4; margin-top: 0.75rem; }
+    button {
+      width: 100%; margin-top: 0.75rem; padding: 0.55rem 1rem; border-radius: 10px; border: none;
+      cursor: pointer; font-weight: 600; font-size: 0.85rem;
+      background: var(--rose);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(194, 78, 86, 0.22);
+    }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    .pct { max-height: 9rem; overflow-y: auto; margin-top: 0.25rem; }
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .btn-row button { flex: 1; margin-top: 0; }
+    #stopBtn {
+      background: var(--burgundy);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(74, 33, 26, 0.18);
+    }
+    .chart-wrap { margin-top: 1rem; position: relative; height: 200px; width: 100%; }
+    .chart-wrap.tall { height: 240px; }
+    .chart-card { width: min(100%, 560px); }
+    .chart-section.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header class="romance-header">
+    <h1>GlowMind realtime</h1>
+  </header>
+  <div class="page-body">
+  <div class="card">
+    <div class="badge" id="face">…</div>
+    <div class="emotion" id="emotion">—</div>
+    <div class="row"><span class="label">Valence (display)</span><span id="vd">—</span></div>
+    <div class="row"><span class="label">Arousal (display)</span><span id="ad">—</span></div>
+    <div class="row"><span class="label">Valence (smooth)</span><span id="vs">—</span></div>
+    <div class="row"><span class="label">Arousal (smooth)</span><span id="as">—</span></div>
+    <div class="row"><span class="label">LED RGB</span><span id="rgb">—</span></div>
+    <div class="swatch" id="swatch"></div>
+    <p class="status" id="conn">Connecting…</p>
+  </div>
+  <div class="card chart-card">
+    <div class="row"><span class="label">Session</span><span id="sess-phase">Idle</span></div>
+    <div class="row"><span class="label">Elapsed</span><span id="sess-elapsed">—</span></div>
+    <div class="btn-row">
+      <button type="button" id="startBtn">Start session</button>
+      <button type="button" id="stopBtn" disabled>Stop session</button>
+    </div>
+    <p class="sub">Time share (table) — updates while recording</p>
+    <div class="pct" id="emotion-pct"></div>
+    <div id="chart-section" class="chart-section hidden">
+      <p class="sub">Charts — session summary (after stop)</p>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      <p class="sub">Label over time (sampled)</p>
+      <div class="chart-wrap tall"><canvas id="lineChart"></canvas></div>
+    </div>
+    <p class="note" id="sess-note"></p>
+  </div>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => (typeof n === "number" && !Number.isNaN(n)) ? n.toFixed(2) : "—";
+    const EMOTION_ORDER = ["no_face","neutral","happy","calm","sad","angry","anxious","excited","tired"];
+    const EMOTION_COLORS = {
+      no_face: "#b5a69e",
+      neutral: "#d4c4a0",
+      happy: "#ebb896",
+      calm: "#deb088",
+      sad: "#9a7266",
+      angry: "#c24e56",
+      anxious: "#a0585c",
+      excited: "#edb49a",
+      tired: "#8a7368"
+    };
+    let barChart = null;
+    let lineChart = null;
+    let lastStoppedChartKey = null;
+    const chartText = "#4a211a";
+    const chartGrid = "rgba(74, 33, 26, 0.07)";
+
+    function emotionY(e) {
+      const i = EMOTION_ORDER.indexOf(e);
+      return i >= 0 ? i : EMOTION_ORDER.length;
+    }
+
+    function updateBarChart(pctObj) {
+      const keys = Object.keys(pctObj || {}).sort();
+      const ctx = $("barChart").getContext("2d");
+      if (barChart) barChart.destroy();
+      if (!keys.length) {
+        barChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels: ["—"], datasets: [{ data: [0], backgroundColor: "#e0d4cb" }] },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { x: { ticks: { color: chartText }, grid: { color: chartGrid } },
+                     y: { beginAtZero: true, max: 100, ticks: { color: chartText }, grid: { color: chartGrid } } }
+          }
+        });
+        return;
+      }
+      barChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: keys,
+          datasets: [{
+            data: keys.map((k) => pctObj[k]),
+            backgroundColor: keys.map((k) => EMOTION_COLORS[k] || "#d4b5a8")
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: chartText }, grid: { color: chartGrid } },
+            y: { beginAtZero: true, max: 100, title: { display: true, text: "% of session", color: chartText },
+                 ticks: { color: chartText }, grid: { color: chartGrid } }
+          }
+        }
+      });
+    }
+
+    function updateLineChart(timeline) {
+      const pts = timeline || [];
+      const ctx = $("lineChart").getContext("2d");
+      if (lineChart) lineChart.destroy();
+      if (pts.length === 0) {
+        lineChart = new Chart(ctx, {
+          type: "line",
+          data: { labels: [0], datasets: [{ data: [0], borderColor: "#c9a898", stepped: true }] },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { type: "linear", title: { display: true, text: "seconds", color: chartText },
+                   ticks: { color: chartText }, grid: { color: chartGrid } },
+              y: { min: 0, max: EMOTION_ORDER.length,
+                   ticks: { color: chartText, stepSize: 1,
+                     callback: (v) => EMOTION_ORDER[v] || "" },
+                   grid: { color: chartGrid } }
+            }
+          }
+        });
+        return;
+      }
+      const data = pts.map((p) => ({ x: p.t, y: emotionY(p.emotion) }));
+      lineChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          datasets: [{
+            data,
+            stepped: true,
+            borderColor: "#c24e56",
+            backgroundColor: "rgba(194, 78, 86, 0.14)",
+            fill: true,
+            tension: 0,
+            pointRadius: 2,
+            pointHoverRadius: 4
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { type: "linear", title: { display: true, text: "seconds", color: chartText },
+                 ticks: { color: chartText }, grid: { color: chartGrid } },
+            y: { min: 0, max: EMOTION_ORDER.length,
+                 ticks: { color: chartText, stepSize: 1,
+                   callback: (v) => EMOTION_ORDER[v] || "" },
+                 grid: { color: chartGrid } }
+          }
+        }
+      });
+    }
+
+    function destroyCharts() {
+      if (barChart) {
+        barChart.destroy();
+        barChart = null;
+      }
+      if (lineChart) {
+        lineChart.destroy();
+        lineChart = null;
+      }
+      lastStoppedChartKey = null;
+    }
+
+    function renderPct(container, pctObj) {
+      container.innerHTML = "";
+      const keys = Object.keys(pctObj || {}).sort();
+      if (!keys.length) {
+        container.innerHTML = '<div class="row"><span class="label">—</span><span>—</span></div>';
+        return;
+      }
+      for (const k of keys) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = '<span class="label">' + k + '</span><span>' + pctObj[k] + '%</span>';
+        container.appendChild(row);
+      }
+    }
+
+    function renderSession(s) {
+      if (!s) return;
+      const ph = s.phase || "idle";
+      $("sess-phase").textContent = ph === "idle" ? "Idle" : ph === "running" ? "Recording" : "Stopped";
+      $("sess-elapsed").textContent = (ph === "idle") ? "—" : (s.elapsed_s + " s");
+      $("startBtn").disabled = ph === "running";
+      $("stopBtn").disabled = ph !== "running";
+      $("sess-note").textContent = s.note || "";
+      renderPct($("emotion-pct"), s.emotion_pct);
+      const chartSec = $("chart-section");
+      if (ph === "stopped") {
+        chartSec.classList.remove("hidden");
+        const key = JSON.stringify({ e: s.emotion_pct, t: s.timeline });
+        if (key !== lastStoppedChartKey) {
+          lastStoppedChartKey = key;
+          updateBarChart(s.emotion_pct);
+          updateLineChart(s.timeline);
+        }
+      } else {
+        chartSec.classList.add("hidden");
+        destroyCharts();
+      }
+    }
+
+    function applyLive(data) {
+      $("emotion").textContent = data.emotion ?? "—";
+      $("face").textContent = data.face_active ? "Face detected" : "No face";
+      $("vd").textContent = fmt(data.valence_display);
+      $("ad").textContent = fmt(data.arousal_display);
+      $("vs").textContent = fmt(data.valence_smoothed);
+      $("as").textContent = fmt(data.arousal_smoothed);
+      const r = data.led_r|0, g = data.led_g|0, b = data.led_b|0;
+      $("rgb").textContent = r + ", " + g + ", " + b;
+      const mx = Math.max(r,g,b,1);
+      const sr = Math.round(r/mx*255), sg = Math.round(g/mx*255), sb = Math.round(b/mx*255);
+      $("swatch").style.background = "rgb(" + sr + "," + sg + "," + sb + ")";
+    }
+    function applyPayload(msg) {
+      const live = msg.live || msg;
+      applyLive(live);
+      if (msg.session) renderSession(msg.session);
+    }
+    async function postSession(path) {
+      try {
+        const r = await fetch(path, { method: "POST" });
+        if (r.ok) {
+          const j = await r.json();
+          if (j.session) renderSession(j.session);
+        }
+      } catch (e) {}
+    }
+    $("startBtn").onclick = () => postSession("/session/start");
+    $("stopBtn").onclick = () => postSession("/session/stop");
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = proto + "//" + location.host + "/ws";
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => { $("conn").textContent = "Live (WebSocket)"; $("conn").classList.remove("err"); };
+    ws.onmessage = (ev) => { try { applyPayload(JSON.parse(ev.data)); } catch (e) {} };
+    ws.onclose = () => {
+      $("conn").textContent = "Disconnected — refresh to reconnect";
+      $("conn").classList.add("err");
+    };
+    ws.onerror = () => {
+      $("conn").textContent = "WebSocket error";
+      $("conn").classList.add("err");
+    };
+  </script>
+</body>
+</html>

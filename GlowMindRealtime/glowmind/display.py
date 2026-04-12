@@ -6,7 +6,25 @@ from collections.abc import Sequence
 
 import cv2
 
-from glowmind.emotion import EMOTIONS
+# Romance dashboard palette as BGR (hex: #3b1012, #a93c49, #eaa488, #feeec5, #dfdfdf).
+_BGR_BURGUNDY = (18, 16, 59)
+_BGR_ROSE = (73, 60, 169)
+_BGR_PEACH = (136, 164, 234)
+_BGR_CREAM = (197, 238, 254)
+_BGR_GREY = (223, 223, 223)
+_BGR_WHITE = (255, 255, 255)
+
+
+def _blend_bgr(
+    a: tuple[int, int, int], b: tuple[int, int, int], t: float
+) -> tuple[int, int, int]:
+    """Linear blend a → b as t goes 0 → 1."""
+    return tuple(int(a[i] * (1.0 - t) + b[i] * t) for i in range(3))
+
+
+def _wash_bgr(base: tuple[int, int, int], strength: float) -> tuple[int, int, int]:
+    """Push ``base`` toward white for a soft panel tint (strength = amount of base)."""
+    return _blend_bgr(_BGR_WHITE, base, strength)
 
 
 def _va_to_pixel(
@@ -57,66 +75,26 @@ def draw_circumplex_mood_ring(
 
     overlay = frame.copy()
 
-    # Quadrant tints (BGR), from emotion palette — subtle fill for screenshots
-    qcols = {
-        "nw": EMOTIONS["anxious"],
-        "ne": EMOTIONS["excited"],
-        "sw": EMOTIONS["sad"],
-        "se": EMOTIONS["calm"],
+    # Quadrant tints — soft washes of rose / peach / grey / burgundy (matches web dashboard).
+    q_wash = {
+        "nw": _wash_bgr(_BGR_ROSE, 0.14),
+        "ne": _wash_bgr(_BGR_PEACH, 0.14),
+        "sw": _wash_bgr(_BGR_BURGUNDY, 0.07),
+        "se": _wash_bgr(_BGR_GREY, 0.12),
     }
-    tint = 0.22
-    cv2.rectangle(
-        overlay,
-        (x0 + pad, y0 + pad),
-        (cx, cy),
-        (
-            int(qcols["nw"][2] * tint + 255 * (1 - tint)),
-            int(qcols["nw"][1] * tint + 255 * (1 - tint)),
-            int(qcols["nw"][0] * tint + 255 * (1 - tint)),
-        ),
-        -1,
-    )
-    cv2.rectangle(
-        overlay,
-        (cx, y0 + pad),
-        (x1 - pad, cy),
-        (
-            int(qcols["ne"][2] * tint + 255 * (1 - tint)),
-            int(qcols["ne"][1] * tint + 255 * (1 - tint)),
-            int(qcols["ne"][0] * tint + 255 * (1 - tint)),
-        ),
-        -1,
-    )
-    cv2.rectangle(
-        overlay,
-        (x0 + pad, cy),
-        (cx, y1 - pad),
-        (
-            int(qcols["sw"][2] * tint + 255 * (1 - tint)),
-            int(qcols["sw"][1] * tint + 255 * (1 - tint)),
-            int(qcols["sw"][0] * tint + 255 * (1 - tint)),
-        ),
-        -1,
-    )
-    cv2.rectangle(
-        overlay,
-        (cx, cy),
-        (x1 - pad, y1 - pad),
-        (
-            int(qcols["se"][2] * tint + 255 * (1 - tint)),
-            int(qcols["se"][1] * tint + 255 * (1 - tint)),
-            int(qcols["se"][0] * tint + 255 * (1 - tint)),
-        ),
-        -1,
-    )
+    cv2.rectangle(overlay, (x0 + pad, y0 + pad), (cx, cy), q_wash["nw"], -1)
+    cv2.rectangle(overlay, (cx, y0 + pad), (x1 - pad, cy), q_wash["ne"], -1)
+    cv2.rectangle(overlay, (x0 + pad, cy), (cx, y1 - pad), q_wash["sw"], -1)
+    cv2.rectangle(overlay, (cx, cy), (x1 - pad, y1 - pad), q_wash["se"], -1)
     cv2.addWeighted(overlay, 0.55, frame, 0.45, 0, frame)
 
-    cv2.rectangle(frame, (x0, y0), (x1, y1), (240, 240, 245), 2)
-    cv2.line(frame, (x0 + pad, cy), (x1 - pad, cy), (90, 90, 100), 1)
-    cv2.line(frame, (cx, y0 + pad), (cx, y1 - pad), (90, 90, 100), 1)
-    cv2.circle(frame, (cx, cy), 3, (120, 120, 130), -1)
+    cv2.rectangle(frame, (x0, y0), (x1, y1), _BGR_ROSE, 2)
+    axis_color = _blend_bgr(_BGR_GREY, _BGR_BURGUNDY, 0.35)
+    cv2.line(frame, (x0 + pad, cy), (x1 - pad, cy), axis_color, 1)
+    cv2.line(frame, (cx, y0 + pad), (cx, y1 - pad), axis_color, 1)
+    cv2.circle(frame, (cx, cy), 3, _BGR_ROSE, -1)
 
-    label_color = (40, 40, 48) if active else (100, 100, 110)
+    label_color = _BGR_BURGUNDY if active else _blend_bgr(_BGR_GREY, _BGR_BURGUNDY, 0.55)
     font = cv2.FONT_HERSHEY_SIMPLEX
     fs = 0.38
     t = 1
@@ -132,21 +110,17 @@ def draw_circumplex_mood_ring(
         ]
         for i in range(1, len(pts)):
             s = i / max(1, len(pts) - 1)
-            col = (
-                int(60 + 140 * s),
-                int(60 + 140 * s),
-                int(70 + 130 * s),
-            )
+            col = _blend_bgr(_BGR_PEACH, _BGR_ROSE, s * 0.85)
             cv2.line(frame, pts[i - 1], pts[i], col, 2, cv2.LINE_AA)
 
     if active:
         px, py = _va_to_pixel(x0, y0, inner, pad, valence, arousal)
-        cv2.circle(frame, (px, py), 8, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.circle(frame, (px, py), 5, (40, 180, 255), -1, cv2.LINE_AA)
-        cv2.circle(frame, (px, py), 5, (20, 120, 220), 1, cv2.LINE_AA)
+        cv2.circle(frame, (px, py), 8, _BGR_CREAM, 2, cv2.LINE_AA)
+        cv2.circle(frame, (px, py), 5, _BGR_ROSE, -1, cv2.LINE_AA)
+        cv2.circle(frame, (px, py), 5, _BGR_BURGUNDY, 1, cv2.LINE_AA)
     else:
         px, py = _va_to_pixel(x0, y0, inner, pad, valence, arousal)
-        cv2.circle(frame, (px, py), 6, (160, 160, 170), 1, cv2.LINE_AA)
+        cv2.circle(frame, (px, py), 6, _BGR_GREY, 1, cv2.LINE_AA)
 
 
 def open_capture(primary_index: int, fallback_index: int) -> cv2.VideoCapture:
@@ -166,14 +140,14 @@ def draw_face_overlay(
     v_s: float,
     a_s: float,
 ) -> None:
-    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    cv2.rectangle(frame, (x, y), (x + w, y + h), _BGR_ROSE, 2)
     cv2.putText(
         frame,
         f"{emotion}  V:{v_s:.2f} A:{a_s:.2f}",
         (x, y - 10),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.6,
-        (0, 255, 0),
+        _BGR_BURGUNDY,
         2,
     )
 
@@ -182,8 +156,8 @@ def draw_led_preview(frame, r: int, g: int, b: int) -> None:
     r, g, b = max(1, r), max(1, g), max(1, b)
     scale = 255 / max(r, g, b)
     preview_rgb = (int(r * scale), int(g * scale), int(b * scale))
-    cv2.rectangle(frame, (10, 10), (70, 50), (0, 0, 0), 2)
+    cv2.rectangle(frame, (10, 10), (70, 50), _BGR_BURGUNDY, 2)
     cv2.rectangle(
         frame, (12, 12), (68, 48), (preview_rgb[2], preview_rgb[1], preview_rgb[0]), -1
     )
-    cv2.putText(frame, "LED", (14, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+    cv2.putText(frame, "LED", (14, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.4, _BGR_CREAM, 1)
