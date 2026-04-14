@@ -34,6 +34,7 @@ from glowmind.inference import (
     load_model_weights,
     select_primary_face,
 )
+from glowmind.runtime_metrics import RuntimeMetrics
 from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
 
@@ -55,16 +56,18 @@ def run(
     led: LedSink | None = None,
     live_state: LiveState | None = None,
     session_stats: SessionStats | None = None,
+    metrics: RuntimeMetrics | None = None,
 ) -> None:
     """Run the realtime pipeline. Always closes the active sink when finished (including on error).
 
     Pass a custom :class:`LedSink` (e.g. :class:`NullLedSink`) to skip serial or for tests.
     Optional :class:`LiveState` is updated every frame for REST/WebSocket clients.
     Optional :class:`SessionStats` accumulates segment timers when a session is started via the API.
+    Optional :class:`RuntimeMetrics` records FPS, inference latency, and camera read failures.
     """
     sink: LedSink = open_led_sink(settings) if led is None else led
     try:
-        _run_loop(settings, sink, live_state, session_stats)
+        _run_loop(settings, sink, live_state, session_stats, metrics)
     finally:
         sink.close()
 
@@ -74,22 +77,29 @@ def _run_loop(
     led: LedSink,
     live_state: LiveState | None,
     session_stats: SessionStats | None,
+    metrics: RuntimeMetrics | None,
 ) -> None:
     device = settings.device
     model = build_va_resnet(device)
     load_model_weights(model, settings.model_weights, device)
     log.info("Model loaded successfully")
+    if metrics is not None:
+        metrics.set_model_ready(True)
 
     face_cascade = load_face_cascade()
     transform = face_transform()
 
     cap = open_capture(settings.camera_index, settings.camera_fallback_index)
     if not cap.isOpened():
+        if metrics is not None:
+            metrics.set_camera_ready(False)
         raise CameraUnavailableError(
             "Could not open camera. Check permissions "
             "(System Settings → Privacy → Camera) or try CAMERA_INDEX / CAMERA_FALLBACK_INDEX."
         )
     log.info("Camera opened (index %s)", settings.camera_index)
+    if metrics is not None:
+        metrics.set_camera_ready(True)
 
     v_s = 0.0
     a_s = 0.0
@@ -103,6 +113,8 @@ def _run_loop(
         while True:
             ret, frame = cap.read()
             if not ret:
+                if metrics is not None:
+                    metrics.record_read_failure()
                 break
 
             t = time.time() - start_time
@@ -119,8 +131,11 @@ def _run_loop(
                 face = frame[py : py + ph, px : px + pw]
                 inp = transform(face).unsqueeze(0).to(device)
 
+                t_infer0 = time.perf_counter()
                 with torch.no_grad():
                     output = _forward_va(model, inp)
+                if metrics is not None:
+                    metrics.record_inference_ms((time.perf_counter() - t_infer0) * 1000.0)
 
                 valence = float(output[0, 0].item())
                 arousal = float(output[0, 1].item())
@@ -194,6 +209,9 @@ def _run_loop(
                     session_stats.tick(face_active=True, emotion=emotion)
                 else:
                     session_stats.tick(face_active=False, emotion="neutral")
+
+            if metrics is not None:
+                metrics.record_frame_processed()
 
             cv2.imshow("GlowMind", frame)
             if cv2.waitKey(1) & 0xFF == 27:

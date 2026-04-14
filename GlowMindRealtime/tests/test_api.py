@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from glowmind.api import create_app
 from glowmind.history_store import SessionHistoryStore
+from glowmind.runtime_metrics import RuntimeMetrics
 from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
 
@@ -23,6 +24,13 @@ def test_dashboard_root_serves_html() -> None:
     assert "WebSocket" in r.text
     assert 'id="emotion"' in r.text
     assert "Stop session" in r.text
+    assert "System" in r.text
+    assert "dashboard-main" in r.text
+    assert "dashboard-side" in r.text
+    assert "obs-details" in r.text
+    assert "obs-status-pill" in r.text
+    assert "obs-compact-problem" in r.text
+    assert "obsTrendChart" in r.text
 
 
 def test_health_and_state_rest() -> None:
@@ -138,3 +146,46 @@ def test_session_history_delete_endpoint(tmp_path) -> None:
 
     missing = client.delete(f"/session/history/{session_id}")
     assert missing.status_code == 404
+
+
+def test_metrics_disabled_without_runtime_metrics() -> None:
+    live = LiveState()
+    stats = SessionStats()
+    app = create_app(live, stats, cors_origins=["*"])
+    client = TestClient(app)
+    assert client.get("/metrics").json() == {"enabled": False}
+    rdy = client.get("/ready").json()
+    assert rdy["ready"] is False
+    assert "observability" in rdy["reason"].lower()
+
+
+def test_metrics_and_ready_with_runtime_metrics() -> None:
+    live = LiveState()
+    stats = SessionStats()
+    m = RuntimeMetrics()
+    m.set_model_ready(True)
+    m.set_camera_ready(True)
+    m.record_frame_processed()
+    m.record_inference_ms(12.5)
+    app = create_app(live, stats, cors_origins=["*"], metrics=m)
+    client = TestClient(app)
+    body = client.get("/metrics").json()
+    assert body["enabled"] is True
+    assert body["inference_samples"] == 1
+    assert body["ready"] is True
+    rdy = client.get("/ready").json()
+    assert rdy["ready"] is True
+    assert rdy["checks"]["model_loaded"] is True
+
+
+def test_websocket_client_count_on_runtime_metrics() -> None:
+    live = LiveState()
+    stats = SessionStats()
+    m = RuntimeMetrics()
+    app = create_app(live, stats, cors_origins=["*"], metrics=m)
+    client = TestClient(app)
+    assert m.snapshot()["websocket_clients"] == 0
+    with client.websocket_connect("/ws") as ws:
+        assert m.snapshot()["websocket_clients"] == 1
+        ws.receive_json()
+    assert m.snapshot()["websocket_clients"] == 0

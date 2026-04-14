@@ -11,9 +11,10 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
+from glowmind.history_store import SessionHistoryStore
+from glowmind.runtime_metrics import RuntimeMetrics
 from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
-from glowmind.history_store import SessionHistoryStore
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ def create_app(
     *,
     cors_origins: list[str],
     history_store: SessionHistoryStore | None = None,
+    metrics: RuntimeMetrics | None = None,
 ) -> FastAPI:
     app = FastAPI(title="GlowMind Realtime", version="0.1.0")
 
@@ -44,6 +46,23 @@ def create_app(
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/ready")
+    def ready() -> dict:
+        if metrics is None:
+            return {"ready": False, "reason": "observability metrics not enabled"}
+        snap = metrics.snapshot()
+        return {
+            "ready": snap["ready"],
+            "checks": snap["ready_checks"],
+            "reasons": snap["ready_reasons"],
+        }
+
+    @app.get("/metrics")
+    def metrics_get() -> dict:
+        if metrics is None:
+            return {"enabled": False}
+        return {"enabled": True, **metrics.snapshot()}
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard() -> str:
@@ -95,6 +114,8 @@ def create_app(
     @app.websocket("/ws")
     async def stream(ws: WebSocket) -> None:
         await ws.accept()
+        if metrics is not None:
+            metrics.ws_connect()
         try:
             while True:
                 await ws.send_json(
@@ -103,6 +124,9 @@ def create_app(
                 await asyncio.sleep(0.1)
         except WebSocketDisconnect:
             log.debug("WebSocket client disconnected")
+        finally:
+            if metrics is not None:
+                metrics.ws_disconnect()
 
     return app
 
@@ -127,7 +151,7 @@ def start_api_server_thread(
     thread = threading.Thread(target=_run, name="glowmind-uvicorn", daemon=True)
     thread.start()
     log.info(
-        "API server thread started at http://%s:%s (/ /state /ws /session/*)",
+        "API server thread started at http://%s:%s (/ /state /ws /session/* /metrics /ready)",
         host,
         port,
     )

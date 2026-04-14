@@ -20,7 +20,7 @@
       margin: 0; min-height: 100vh; font-family: ui-sans-serif, system-ui, sans-serif;
       background: var(--grey);
       color: var(--burgundy);
-      display: flex; flex-direction: column; align-items: center;
+      display: flex; flex-direction: column; align-items: stretch;
     }
     .romance-header {
       width: 100%;
@@ -41,11 +41,54 @@
     .page-body {
       flex: 1;
       width: 100%;
+      max-width: 1220px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(240px, 320px) minmax(320px, 560px) minmax(240px, 320px);
+      align-items: start;
+      padding: 1.5rem;
+      column-gap: 1.5rem;
+      row-gap: 1rem;
+    }
+    .dashboard-main {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1.5rem;
       gap: 1rem;
+      width: 100%;
+      max-width: 560px;
+      grid-column: 2;
+    }
+    .dashboard-side {
+      width: 100%;
+      max-width: 320px;
+      grid-column: 3;
+      position: sticky;
+      top: 1rem;
+      align-self: flex-start;
+    }
+    .obs-side-card {
+      width: 100%;
+      max-width: none;
+      padding: 1.25rem 1.35rem;
+      background: linear-gradient(165deg, #fff8f0 0%, var(--cream) 55%, #f5e8dc 100%);
+      border: 1px solid rgba(194, 78, 86, 0.12);
+      box-shadow: 4px 8px 28px rgba(74, 33, 26, 0.08);
+    }
+    @media (max-width: 880px) {
+      .page-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .dashboard-main {
+        max-width: min(100%, 560px);
+      }
+      .dashboard-side {
+        position: static;
+        width: min(100%, 560px);
+        max-width: 560px;
+      }
     }
     .card {
       background: var(--cream);
@@ -78,6 +121,7 @@
     .err { color: var(--rose); }
     .sub { font-size: 0.75rem; color: var(--burgundy); margin: 0.75rem 0 0.35rem; font-weight: 600; opacity: 0.9; }
     .note { font-size: 0.68rem; color: var(--muted); line-height: 1.4; margin-top: 0.75rem; }
+    .note code { font-size: 0.9em; background: rgba(74, 33, 26, 0.06); padding: 0.1rem 0.25rem; border-radius: 4px; }
     button {
       width: 100%; margin-top: 0.75rem; padding: 0.55rem 1rem; border-radius: 10px; border: none;
       cursor: pointer; font-weight: 600; font-size: 0.85rem;
@@ -133,6 +177,161 @@
       box-shadow: none;
       margin-top: 0.5rem;
     }
+    .obs-card .sub { margin-top: 0; }
+    .obs-details { width: 100%; }
+    .obs-summary {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.45rem;
+      cursor: pointer;
+      list-style: none;
+      padding: 0.35rem 0.15rem;
+      margin: -0.35rem -0.15rem 0;
+      border-radius: 10px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .obs-summary:hover {
+      background: rgba(194, 78, 86, 0.06);
+    }
+    .obs-summary:focus-visible {
+      outline: 2px solid rgba(194, 78, 86, 0.45);
+      outline-offset: 2px;
+    }
+    .obs-summary::-webkit-details-marker { display: none; }
+    .obs-summary-top {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+    .obs-chevron {
+      width: 1.35rem;
+      height: 1.35rem;
+      border-radius: 8px;
+      background: rgba(194, 78, 86, 0.14);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--rose);
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+    .obs-details[open] .obs-chevron {
+      transform: rotate(90deg);
+    }
+    .obs-summary-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--burgundy);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .obs-summary-hint {
+      display: block;
+      font-size: 0.62rem;
+      color: var(--muted);
+      font-style: italic;
+      line-height: 1.35;
+      padding-left: 1.75rem;
+    }
+    .obs-hint-when-open { display: none; }
+    .obs-details[open] .obs-hint-when-closed { display: none; }
+    .obs-details[open] .obs-hint-when-open { display: inline; }
+    .obs-compact-problem {
+      display: block;
+      width: 100%;
+      font-size: 0.68rem;
+      color: var(--muted);
+      line-height: 1.35;
+      margin: 0;
+      padding-left: 1.75rem;
+    }
+    .obs-compact-problem.obs-problem-on { color: var(--rose); font-weight: 500; }
+    .obs-expanded {
+      padding-top: 0.85rem;
+      border-top: 1px solid rgba(74, 33, 26, 0.08);
+      margin-top: 0.65rem;
+    }
+    .obs-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(115, 90, 82, 0.15);
+      color: var(--muted);
+    }
+    .obs-pill.ok { background: rgba(76, 140, 90, 0.2); color: #2d5a36; }
+    .obs-pill.warn { background: rgba(194, 78, 86, 0.18); color: var(--rose); }
+    .obs-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.75rem;
+      margin-bottom: 0.85rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .obs-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(74, 33, 26, 0.08);
+    }
+    .obs-check.pass { color: #2d5a36; }
+    .obs-check.fail { color: var(--rose); }
+    .obs-tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .obs-tile {
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(74, 33, 26, 0.08);
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+    }
+    .obs-tile-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .obs-tile-val { font-size: 1.15rem; font-weight: 700; color: var(--burgundy); font-variant-numeric: tabular-nums; margin-top: 0.15rem; display: block; }
+    .obs-rows .row { font-size: 0.82rem; }
+    .obs-rows .warn span:last-child { color: var(--rose); font-weight: 600; }
+    .obs-chart-wrap {
+      height: 120px;
+      margin-top: 0.65rem;
+      position: relative;
+    }
+    .obs-toolbar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    #obsRefreshBtn {
+      flex: 0 0 auto;
+      width: auto;
+      margin-top: 0;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.78rem;
+      background: transparent;
+      color: var(--burgundy);
+      border: 1px solid rgba(74, 33, 26, 0.2);
+      box-shadow: none;
+    }
+    #obs-reasons {
+      font-size: 0.68rem;
+      color: var(--rose);
+      margin: 0 0 0.5rem;
+      padding-left: 1.1rem;
+      line-height: 1.35;
+    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -140,6 +339,7 @@
     <h1>GlowMind realtime</h1>
   </header>
   <div class="page-body">
+  <div class="dashboard-main">
   <div class="card">
     <div class="badge" id="face">…</div>
     <div class="emotion" id="emotion">—</div>
@@ -177,6 +377,59 @@
     <p class="note" id="history-note">Stopped sessions are stored locally.</p>
   </div>
   </div>
+  <aside class="dashboard-side" aria-label="System status">
+  <div class="card chart-card obs-card obs-side-card">
+    <details class="obs-details" id="obsDetails" aria-label="System status and advanced metrics">
+      <summary class="obs-summary">
+        <div class="obs-summary-top">
+          <span class="obs-chevron" aria-hidden="true">›</span>
+          <span class="obs-summary-title">System</span>
+          <span id="obs-status-pill" class="obs-pill">—</span>
+        </div>
+        <span id="obs-compact-problem" class="obs-compact-problem">—</span>
+        <span class="obs-summary-hint">
+          <span class="obs-hint-when-closed">Click to show FPS, latency &amp; chart</span>
+          <span class="obs-hint-when-open">Click to hide details</span>
+        </span>
+      </summary>
+      <div class="obs-expanded">
+        <p class="sub">Advanced metrics</p>
+        <div class="obs-toolbar">
+          <button type="button" id="obsRefreshBtn">Refresh now</button>
+          <span class="note" style="margin:0;">Auto every 1s</span>
+        </div>
+        <ul id="obs-reasons" class="hidden"></ul>
+        <div id="obs-checks" class="obs-checks" aria-label="Readiness checks"></div>
+        <div class="obs-tiles">
+          <div class="obs-tile">
+            <span class="obs-tile-label">FPS (est.)</span>
+            <span id="obs-fps" class="obs-tile-val">—</span>
+          </div>
+          <div class="obs-tile">
+            <span class="obs-tile-label">Inference avg</span>
+            <span id="obs-inf-avg" class="obs-tile-val">—</span>
+          </div>
+          <div class="obs-tile">
+            <span class="obs-tile-label">Inference p95</span>
+            <span id="obs-inf-p95" class="obs-tile-val">—</span>
+          </div>
+          <div class="obs-tile">
+            <span class="obs-tile-label">WS clients</span>
+            <span id="obs-ws" class="obs-tile-val">—</span>
+          </div>
+        </div>
+        <div class="obs-rows">
+          <div class="row" id="obs-row-dropped"><span class="label">Dropped frames</span><span id="obs-dropped">—</span></div>
+          <div class="row" id="obs-row-cam"><span class="label">Camera errors</span><span id="obs-cam-err">—</span></div>
+        </div>
+        <p class="sub">FPS trend (last ~40s)</p>
+        <div class="chart-wrap obs-chart-wrap"><canvas id="obsTrendChart"></canvas></div>
+        <p class="note" id="obs-note">Last frame age and polling. Collapse this section for a minimal dashboard.</p>
+      </div>
+    </details>
+  </div>
+  </aside>
+  </div>
   <script>
     const $ = (id) => document.getElementById(id);
     const fmt = (n) => (typeof n === "number" && !Number.isNaN(n)) ? n.toFixed(2) : "—";
@@ -199,6 +452,141 @@
     const chartGrid = "rgba(74, 33, 26, 0.07)";
     let suppressChartDestroy = false;
     let selectedHistorySessionId = null;
+    let obsTrendChart = null;
+    const OBS_FPS_HISTORY_MAX = 40;
+    const obsFpsHistory = [];
+
+    function setObsStatusPill(m) {
+      const pill = $("obs-status-pill");
+      pill.className = "obs-pill";
+      if (!m || !m.enabled) {
+        pill.textContent = "Off";
+        return;
+      }
+      const drops = m.dropped_frames || 0;
+      const cerr = m.camera_errors || 0;
+      if (m.ready && drops === 0 && cerr === 0) {
+        pill.textContent = "Healthy";
+        pill.classList.add("ok");
+      } else if (m.ready) {
+        pill.textContent = "Degraded";
+        pill.classList.add("warn");
+      } else {
+        pill.textContent = "Not ready";
+        pill.classList.add("warn");
+      }
+    }
+
+    function setObsCompactProblem(m) {
+      const el = $("obs-compact-problem");
+      if (!el) return;
+      el.classList.remove("obs-problem-on");
+      if (!m || !m.enabled) {
+        el.textContent = "Metrics unavailable. Run with API and runtime metrics enabled.";
+        return;
+      }
+      const reasons = m.ready_reasons || [];
+      const drops = m.dropped_frames || 0;
+      const cerr = m.camera_errors || 0;
+      if (m.ready && drops === 0 && cerr === 0) {
+        el.textContent = "All checks OK.";
+        return;
+      }
+      if (reasons.length) {
+        el.textContent = "Last issue: " + reasons[0];
+        el.classList.add("obs-problem-on");
+        return;
+      }
+      if (drops > 0 || cerr > 0) {
+        el.textContent =
+          "Camera read issues — dropped frames: " + drops + ", camera errors: " + cerr;
+        el.classList.add("obs-problem-on");
+        return;
+      }
+      if (m.ready) {
+        el.textContent = "Running with warnings.";
+        el.classList.add("obs-problem-on");
+        return;
+      }
+      el.textContent = "Pipeline not ready.";
+      el.classList.add("obs-problem-on");
+    }
+
+    function renderObsChecks(m) {
+      const box = $("obs-checks");
+      box.innerHTML = "";
+      if (!m || !m.enabled) return;
+      const c = m.ready_checks || {};
+      const items = [
+        ["Model loaded", !!c.model_loaded],
+        ["Camera open", !!c.camera_open],
+        ["Recent frames", !!c.recent_frames]
+      ];
+      for (const [label, ok] of items) {
+        const s = document.createElement("span");
+        s.className = "obs-check " + (ok ? "pass" : "fail");
+        s.textContent = (ok ? "OK · " : "No · ") + label;
+        box.appendChild(s);
+      }
+    }
+
+    function renderObsReasons(m) {
+      const ul = $("obs-reasons");
+      ul.innerHTML = "";
+      if (!m || !m.enabled || m.ready) {
+        ul.classList.add("hidden");
+        return;
+      }
+      ul.classList.remove("hidden");
+      const reasons = m.ready_reasons || [];
+      for (const t of reasons) {
+        const li = document.createElement("li");
+        li.textContent = t;
+        ul.appendChild(li);
+      }
+    }
+
+    function updateObsTrendChart() {
+      const canvas = $("obsTrendChart");
+      if (!canvas) return;
+      const labels = obsFpsHistory.map((_, i) => String(i + 1));
+      const data = obsFpsHistory.slice();
+      if (!obsTrendChart) {
+        obsTrendChart = new Chart(canvas.getContext("2d"), {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "FPS",
+              data,
+              borderColor: "#c24e56",
+              backgroundColor: "rgba(194, 78, 86, 0.12)",
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { display: false },
+              y: {
+                beginAtZero: true,
+                ticks: { color: chartText, font: { size: 10 } },
+                grid: { color: chartGrid }
+              }
+            }
+          }
+        });
+        return;
+      }
+      obsTrendChart.data.labels = labels;
+      obsTrendChart.data.datasets[0].data = data;
+      obsTrendChart.update("none");
+    }
 
     function emotionY(e) {
       const i = EMOTION_ORDER.indexOf(e);
@@ -418,6 +806,59 @@
       }
     }
 
+    async function loadMetrics() {
+      try {
+        const r = await fetch("/metrics");
+        if (!r.ok) return;
+        const m = await r.json();
+        if (!m.enabled) {
+          obsFpsHistory.length = 0;
+          if (obsTrendChart) {
+            obsTrendChart.data.datasets[0].data = [];
+            obsTrendChart.update("none");
+          }
+          setObsStatusPill(null);
+          setObsCompactProblem(null);
+          renderObsChecks(null);
+          renderObsReasons(null);
+          $("obs-fps").textContent = "—";
+          $("obs-inf-avg").textContent = "—";
+          $("obs-inf-p95").textContent = "—";
+          $("obs-dropped").textContent = "—";
+          $("obs-cam-err").textContent = "—";
+          $("obs-ws").textContent = "—";
+          $("obs-row-dropped").classList.remove("warn");
+          $("obs-row-cam").classList.remove("warn");
+          $("obs-note").textContent = "Metrics off (start app with API + runtime metrics). Endpoints: GET /metrics, GET /ready.";
+          return;
+        }
+        setObsStatusPill(m);
+        setObsCompactProblem(m);
+        renderObsChecks(m);
+        renderObsReasons(m);
+        $("obs-fps").textContent = typeof m.fps_estimate === "number" ? m.fps_estimate.toFixed(1) : "—";
+        $("obs-inf-avg").textContent =
+          typeof m.inference_ms_avg === "number" ? m.inference_ms_avg.toFixed(1) + " ms" : "—";
+        $("obs-inf-p95").textContent =
+          typeof m.inference_ms_p95 === "number" ? m.inference_ms_p95.toFixed(1) + " ms" : "—";
+        $("obs-dropped").textContent = String(m.dropped_frames ?? "0");
+        $("obs-cam-err").textContent = String(m.camera_errors ?? "0");
+        $("obs-ws").textContent = String(m.websocket_clients ?? "0");
+        $("obs-row-dropped").classList.toggle("warn", (m.dropped_frames || 0) > 0);
+        $("obs-row-cam").classList.toggle("warn", (m.camera_errors || 0) > 0);
+        const fpsVal = typeof m.fps_estimate === "number" ? m.fps_estimate : 0;
+        obsFpsHistory.push(fpsVal);
+        while (obsFpsHistory.length > OBS_FPS_HISTORY_MAX) obsFpsHistory.shift();
+        updateObsTrendChart();
+        const age = m.last_frame_age_s;
+        const samples = m.inference_samples != null ? m.inference_samples : "—";
+        $("obs-note").textContent =
+          "Last frame age: " + (typeof age === "number" ? age + " s" : "—") +
+          " · inference samples: " + samples +
+          ". Poll: 1s.";
+      } catch (e) {}
+    }
+
     async function loadHistory() {
       try {
         const r = await fetch("/session/history?limit=30");
@@ -428,7 +869,7 @@
     }
 
     async function deleteSessionById(sessionId) {
-      const ok = window.confirm("Delete session #" + sessionId + "?");
+      const ok = window.confirm("Delete this saved session?");
       if (!ok) return;
       try {
         const r = await fetch("/session/history/" + sessionId, { method: "DELETE" });
@@ -488,10 +929,11 @@
     };
     $("stopBtn").onclick = () => postSession("/session/stop");
     $("historyRefreshBtn").onclick = () => loadHistory();
+    $("obsRefreshBtn").onclick = () => loadMetrics();
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = proto + "//" + location.host + "/ws";
     const ws = new WebSocket(wsUrl);
-    ws.onopen = () => { $("conn").textContent = "Live (WebSocket)"; $("conn").classList.remove("err"); };
+    ws.onopen = () => { $("conn").textContent = "Live"; $("conn").classList.remove("err"); };
     ws.onmessage = (ev) => { try { applyPayload(JSON.parse(ev.data)); } catch (e) {} };
     ws.onclose = () => {
       $("conn").textContent = "Disconnected — refresh to reconnect";
@@ -501,6 +943,16 @@
       $("conn").textContent = "WebSocket error";
       $("conn").classList.add("err");
     };
+    const obsDetailsEl = $("obsDetails");
+    if (obsDetailsEl) {
+      obsDetailsEl.addEventListener("toggle", () => {
+        if (obsDetailsEl.open && obsTrendChart) {
+          requestAnimationFrame(() => obsTrendChart.resize());
+        }
+      });
+    }
+    loadMetrics();
+    setInterval(loadMetrics, 1000);
     loadHistory();
   </script>
 </body>
