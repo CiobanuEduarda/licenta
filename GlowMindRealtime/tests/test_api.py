@@ -69,7 +69,9 @@ def test_session_start_stop_and_stats() -> None:
     app = create_app(live, stats, cors_origins=["*"])
     client = TestClient(app)
     assert client.get("/session/stats").json()["phase"] == "idle"
-    assert client.post("/session/start").json()["ok"] is True
+    started = client.post("/session/start", params={"name": "Morning Run"}).json()
+    assert started["ok"] is True
+    assert started["session"]["name"] == "Morning Run"
     stats.tick(face_active=True, emotion="happy")
     time.sleep(0.04)
     stats.tick(face_active=True, emotion="happy")
@@ -93,7 +95,7 @@ def test_session_history_endpoints(tmp_path) -> None:
     client = TestClient(app)
 
     assert client.get("/session/history").json() == {"items": []}
-    client.post("/session/start")
+    client.post("/session/start", params={"name": "Demo Session"})
     stats.tick(face_active=True, emotion="happy")
     time.sleep(0.03)
     stats.tick(face_active=True, emotion="happy")
@@ -102,10 +104,37 @@ def test_session_history_endpoints(tmp_path) -> None:
 
     items = client.get("/session/history").json()["items"]
     assert len(items) == 1
+    assert items[0]["name"] == "Demo Session"
     session_id = items[0]["id"]
     one = client.get(f"/session/history/{session_id}")
     assert one.status_code == 200
     body = one.json()
     assert body["id"] == session_id
+    assert body["name"] == "Demo Session"
     assert "timeline" in body
     assert body["phase"] == "stopped"
+
+
+def test_session_history_delete_endpoint(tmp_path) -> None:
+    live = LiveState()
+    store = SessionHistoryStore(str(tmp_path / "history.sqlite3"))
+    stats = SessionStats(on_stop=store.save_stopped_session)
+    app = create_app(live, stats, cors_origins=["*"], history_store=store)
+    client = TestClient(app)
+
+    client.post("/session/start", params={"name": "To Delete"})
+    stats.tick(face_active=True, emotion="happy")
+    time.sleep(0.03)
+    stats.tick(face_active=True, emotion="happy")
+    client.post("/session/stop")
+    items = client.get("/session/history").json()["items"]
+    assert len(items) == 1
+    session_id = items[0]["id"]
+
+    deleted = client.delete(f"/session/history/{session_id}")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"ok": True}
+    assert client.get("/session/history").json()["items"] == []
+
+    missing = client.delete(f"/session/history/{session_id}")
+    assert missing.status_code == 404

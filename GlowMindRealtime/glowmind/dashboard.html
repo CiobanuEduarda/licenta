@@ -90,6 +90,16 @@
     .pct { max-height: 9rem; overflow-y: auto; margin-top: 0.25rem; }
     .btn-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
     .btn-row button { flex: 1; margin-top: 0; }
+    .session-name-input {
+      width: 100%;
+      margin-top: 0.75rem;
+      border: 1px solid rgba(74, 33, 26, 0.2);
+      border-radius: 10px;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--burgundy);
+    }
     #stopBtn {
       background: var(--burgundy);
       color: #fff;
@@ -101,6 +111,21 @@
     .chart-section.hidden { display: none; }
     .history-list { max-height: 12rem; overflow-y: auto; margin-top: 0.35rem; }
     .history-item { cursor: pointer; }
+    .history-actions { display: inline-flex; gap: 0.35rem; align-items: center; }
+    .history-actions button {
+      margin-top: 0;
+      width: auto;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.74rem;
+      box-shadow: none;
+      border: 1px solid rgba(74, 33, 26, 0.2);
+      background: #fff;
+      color: var(--burgundy);
+    }
+    .history-actions .danger {
+      border-color: rgba(194, 78, 86, 0.35);
+      color: var(--rose);
+    }
     #historyRefreshBtn {
       background: transparent;
       color: var(--burgundy);
@@ -128,7 +153,9 @@
   </div>
   <div class="card chart-card">
     <div class="row"><span class="label">Session</span><span id="sess-phase">Idle</span></div>
+    <div class="row"><span class="label">Name</span><span id="sess-name">—</span></div>
     <div class="row"><span class="label">Elapsed</span><span id="sess-elapsed">—</span></div>
+    <input type="text" id="sessionNameInput" class="session-name-input" maxlength="80" placeholder="Session name (optional)" />
     <div class="btn-row">
       <button type="button" id="startBtn">Start session</button>
       <button type="button" id="stopBtn" disabled>Stop session</button>
@@ -297,9 +324,11 @@
       if (!s) return;
       const ph = s.phase || "idle";
       $("sess-phase").textContent = ph === "idle" ? "Idle" : ph === "running" ? "Recording" : "Stopped";
+      $("sess-name").textContent = (s.name && s.name.trim()) ? s.name : "—";
       $("sess-elapsed").textContent = (ph === "idle") ? "—" : (s.elapsed_s + " s");
       $("startBtn").disabled = ph === "running";
       $("stopBtn").disabled = ph !== "running";
+      $("sessionNameInput").disabled = ph === "running";
       $("sess-note").textContent = s.note || "";
       renderPct($("emotion-pct"), s.emotion_pct);
       const chartSec = $("chart-section");
@@ -333,7 +362,8 @@
         suppressChartDestroy = true;
         renderSession(s);
         suppressChartDestroy = false;
-        $("history-note").textContent = "Viewing saved session #" + sessionId + ". Press Start session to return to live.";
+        const displayName = (s.name && s.name.trim()) ? s.name : "unnamed session";
+        $("history-note").textContent = "Viewing saved " + displayName + ". Press Start session to return to live.";
       } catch (e) {
         suppressChartDestroy = false;
       }
@@ -354,9 +384,32 @@
         if (selectedHistorySessionId === item.id) {
           row.style.fontWeight = "700";
         }
-        row.innerHTML =
-          '<span class="label">#' + item.id + " · " + (item.elapsed_s ?? 0) + "s · " + topEmotion(item.emotion_pct) + "</span>" +
-          '<span>Open</span>';
+        const left = document.createElement("span");
+        left.className = "label";
+        left.textContent =
+          ((item.name && item.name.trim()) ? item.name : "unnamed") + " · " + (item.elapsed_s ?? 0) + "s · " + topEmotion(item.emotion_pct);
+        const actions = document.createElement("span");
+        actions.className = "history-actions";
+        const openBtn = document.createElement("button");
+        openBtn.type = "button";
+        openBtn.textContent = "Open";
+        openBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          await loadSessionById(item.id);
+          renderHistory(data);
+        };
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "danger";
+        delBtn.textContent = "Delete";
+        delBtn.onclick = async (ev) => {
+          ev.stopPropagation();
+          await deleteSessionById(item.id);
+        };
+        actions.appendChild(openBtn);
+        actions.appendChild(delBtn);
+        row.appendChild(left);
+        row.appendChild(actions);
         row.onclick = async () => {
           await loadSessionById(item.id);
           renderHistory(data);
@@ -371,6 +424,20 @@
         if (!r.ok) return;
         const j = await r.json();
         renderHistory(j.items || []);
+      } catch (e) {}
+    }
+
+    async function deleteSessionById(sessionId) {
+      const ok = window.confirm("Delete session #" + sessionId + "?");
+      if (!ok) return;
+      try {
+        const r = await fetch("/session/history/" + sessionId, { method: "DELETE" });
+        if (!r.ok) return;
+        if (selectedHistorySessionId === sessionId) {
+          selectedHistorySessionId = null;
+          $("history-note").textContent = "Stopped sessions are stored locally.";
+        }
+        await loadHistory();
       } catch (e) {}
     }
 
@@ -394,9 +461,14 @@
         renderSession(msg.session);
       }
     }
-    async function postSession(path) {
+    async function postSession(path, params = null) {
       try {
-        const r = await fetch(path, { method: "POST" });
+        let target = path;
+        if (params) {
+          const qs = new URLSearchParams(params);
+          target = path + "?" + qs.toString();
+        }
+        const r = await fetch(target, { method: "POST" });
         if (r.ok) {
           const j = await r.json();
           if (j.session) {
@@ -410,7 +482,10 @@
         }
       } catch (e) {}
     }
-    $("startBtn").onclick = () => postSession("/session/start");
+    $("startBtn").onclick = () => {
+      const name = $("sessionNameInput").value.trim();
+      postSession("/session/start", { name });
+    };
     $("stopBtn").onclick = () => postSession("/session/stop");
     $("historyRefreshBtn").onclick = () => loadHistory();
     const proto = location.protocol === "https:" ? "wss:" : "ws:";

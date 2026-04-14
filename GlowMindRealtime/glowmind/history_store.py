@@ -29,6 +29,7 @@ class SessionHistoryStore:
                 CREATE TABLE IF NOT EXISTS session_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     phase TEXT NOT NULL,
+                    name TEXT NOT NULL DEFAULT '',
                     elapsed_s REAL NOT NULL,
                     emotion_pct_json TEXT NOT NULL,
                     timeline_json TEXT NOT NULL,
@@ -37,6 +38,14 @@ class SessionHistoryStore:
                 )
                 """
             )
+            cols = {
+                r["name"]
+                for r in conn.execute("PRAGMA table_info(session_history)").fetchall()
+            }
+            if "name" not in cols:
+                conn.execute(
+                    "ALTER TABLE session_history ADD COLUMN name TEXT NOT NULL DEFAULT ''"
+                )
             conn.commit()
 
     def save_stopped_session(self, summary: dict[str, Any]) -> int:
@@ -48,11 +57,12 @@ class SessionHistoryStore:
             with self._connect() as conn:
                 cur = conn.execute(
                     """
-                    INSERT INTO session_history (phase, elapsed_s, emotion_pct_json, timeline_json, note)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO session_history (phase, name, elapsed_s, emotion_pct_json, timeline_json, note)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         "stopped",
+                        str(summary.get("name", "")).strip(),
                         float(summary.get("elapsed_s", 0.0)),
                         json.dumps(emotion_pct, separators=(",", ":")),
                         json.dumps(timeline, separators=(",", ":")),
@@ -68,7 +78,7 @@ class SessionHistoryStore:
             with self._connect() as conn:
                 rows = conn.execute(
                     """
-                    SELECT id, phase, elapsed_s, emotion_pct_json, note, stopped_at_utc
+                    SELECT id, phase, name, elapsed_s, emotion_pct_json, note, stopped_at_utc
                     FROM session_history
                     ORDER BY id DESC
                     LIMIT ?
@@ -82,6 +92,7 @@ class SessionHistoryStore:
                 {
                     "id": int(row["id"]),
                     "phase": row["phase"],
+                    "name": row["name"],
                     "elapsed_s": round(float(row["elapsed_s"]), 2),
                     "emotion_pct": emotion_pct,
                     "note": row["note"],
@@ -95,7 +106,7 @@ class SessionHistoryStore:
             with self._connect() as conn:
                 row = conn.execute(
                     """
-                    SELECT id, phase, elapsed_s, emotion_pct_json, timeline_json, note, stopped_at_utc
+                    SELECT id, phase, name, elapsed_s, emotion_pct_json, timeline_json, note, stopped_at_utc
                     FROM session_history
                     WHERE id = ?
                     """,
@@ -106,9 +117,20 @@ class SessionHistoryStore:
         return {
             "id": int(row["id"]),
             "phase": row["phase"],
+            "name": row["name"],
             "elapsed_s": round(float(row["elapsed_s"]), 2),
             "emotion_pct": json.loads(row["emotion_pct_json"]),
             "timeline": json.loads(row["timeline_json"]),
             "note": row["note"],
             "stopped_at_utc": row["stopped_at_utc"],
         }
+
+    def delete_session(self, session_id: int) -> bool:
+        with self._lock:
+            with self._connect() as conn:
+                cur = conn.execute(
+                    "DELETE FROM session_history WHERE id = ?",
+                    (int(session_id),),
+                )
+                conn.commit()
+                return cur.rowcount > 0

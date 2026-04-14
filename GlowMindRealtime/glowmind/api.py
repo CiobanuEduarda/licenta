@@ -59,8 +59,8 @@ def create_app(
         return session_stats.summary()
 
     @app.post("/session/start")
-    def session_start() -> dict:
-        session_stats.start_session()
+    def session_start(name: str = "") -> dict:
+        session_stats.start_session(name=name)
         return {"ok": True, "session": session_stats.summary()}
 
     @app.post("/session/stop")
@@ -82,6 +82,15 @@ def create_app(
         if item is None:
             raise HTTPException(status_code=404, detail="Session not found")
         return item
+
+    @app.delete("/session/history/{session_id}")
+    def session_history_delete(session_id: int) -> dict:
+        if history_store is None:
+            raise HTTPException(status_code=404, detail="Session history is disabled")
+        deleted = history_store.delete_session(session_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return {"ok": True}
 
     @app.websocket("/ws")
     async def stream(ws: WebSocket) -> None:

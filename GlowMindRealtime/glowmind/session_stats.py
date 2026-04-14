@@ -25,6 +25,7 @@ class SessionStats:
         "_samples",
         "_last_sample_mono",
         "_frozen_elapsed",
+        "_session_name",
         "_on_stop",
     )
 
@@ -38,9 +39,10 @@ class SessionStats:
         self._samples: list[dict] = []
         self._last_sample_mono: float | None = None
         self._frozen_elapsed: float | None = None
+        self._session_name: str = ""
         self._on_stop = on_stop
 
-    def start_session(self) -> None:
+    def start_session(self, name: str = "") -> None:
         """Clear state and begin recording (wall-time buckets + timeline samples)."""
         with self._lock:
             self._started_at = time.monotonic()
@@ -51,6 +53,7 @@ class SessionStats:
             self._running = True
             self._phase = "running"
             self._frozen_elapsed = None
+            self._session_name = name.strip()
 
     def stop_session(self) -> None:
         """Freeze totals and timeline; no further accumulation until the next start."""
@@ -110,6 +113,7 @@ class SessionStats:
             return {
                 "phase": "idle",
                 "recording": False,
+                "name": self._session_name,
                 "elapsed_s": 0.0,
                 "emotion_pct": {},
                 "timeline": [],
@@ -124,6 +128,7 @@ class SessionStats:
             return {
                 "phase": "running",
                 "recording": True,
+                "name": self._session_name,
                 "elapsed_s": round(elapsed, 2),
                 "emotion_pct": emotion_pct,
                 "timeline": list(self._samples),
@@ -137,6 +142,7 @@ class SessionStats:
         return {
             "phase": "stopped",
             "recording": False,
+            "name": self._session_name,
             "elapsed_s": round(elapsed, 2),
             "emotion_pct": emotion_pct,
             "timeline": list(self._samples),

@@ -66,3 +66,13 @@ def test_stop_triggers_on_stop_callback() -> None:
 
     assert len(seen) == 1
     assert seen[0]["phase"] == "stopped"
+
+
+def test_session_name_is_preserved() -> None:
+    s = SessionStats()
+    s.start_session(name="Evening Focus")
+    running = s.summary()
+    assert running["name"] == "Evening Focus"
+    s.stop_session()
+    stopped = s.summary()
+    assert stopped["name"] == "Evening Focus"
