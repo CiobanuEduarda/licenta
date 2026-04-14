@@ -7,6 +7,7 @@ import time
 from fastapi.testclient import TestClient
 
 from glowmind.api import create_app
+from glowmind.history_store import SessionHistoryStore
 from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
 
@@ -82,3 +83,29 @@ def test_session_start_stop_and_stats() -> None:
     assert stopped["phase"] == "stopped"
     assert stopped["recording"] is False
     assert "happy" in stopped["emotion_pct"]
+
+
+def test_session_history_endpoints(tmp_path) -> None:
+    live = LiveState()
+    store = SessionHistoryStore(str(tmp_path / "history.sqlite3"))
+    stats = SessionStats(on_stop=store.save_stopped_session)
+    app = create_app(live, stats, cors_origins=["*"], history_store=store)
+    client = TestClient(app)
+
+    assert client.get("/session/history").json() == {"items": []}
+    client.post("/session/start")
+    stats.tick(face_active=True, emotion="happy")
+    time.sleep(0.03)
+    stats.tick(face_active=True, emotion="happy")
+    stopped = client.post("/session/stop").json()["session"]
+    assert stopped["phase"] == "stopped"
+
+    items = client.get("/session/history").json()["items"]
+    assert len(items) == 1
+    session_id = items[0]["id"]
+    one = client.get(f"/session/history/{session_id}")
+    assert one.status_code == 200
+    body = one.json()
+    assert body["id"] == session_id
+    assert "timeline" in body
+    assert body["phase"] == "stopped"

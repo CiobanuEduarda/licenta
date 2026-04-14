@@ -7,12 +7,13 @@ import logging
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
+from glowmind.history_store import SessionHistoryStore
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def create_app(
     session_stats: SessionStats,
     *,
     cors_origins: list[str],
+    history_store: SessionHistoryStore | None = None,
 ) -> FastAPI:
     app = FastAPI(title="GlowMind Realtime", version="0.1.0")
 
@@ -65,6 +67,21 @@ def create_app(
     def session_stop() -> dict:
         session_stats.stop_session()
         return {"ok": True, "session": session_stats.summary()}
+
+    @app.get("/session/history")
+    def session_history(limit: int = 20) -> dict:
+        if history_store is None:
+            return {"items": []}
+        return {"items": history_store.list_sessions(limit=limit)}
+
+    @app.get("/session/history/{session_id}")
+    def session_history_one(session_id: int) -> dict:
+        if history_store is None:
+            raise HTTPException(status_code=404, detail="Session history is disabled")
+        item = history_store.get_session(session_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return item
 
     @app.websocket("/ws")
     async def stream(ws: WebSocket) -> None:

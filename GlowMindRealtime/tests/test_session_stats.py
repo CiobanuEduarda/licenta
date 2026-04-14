@@ -49,3 +49,20 @@ def test_stop_freezes_and_timeline_preserved() -> None:
     assert "happy" in after["emotion_pct"]
     assert "angry" not in after["emotion_pct"]
     assert len(after["timeline"]) >= len(mid["timeline"])
+
+
+def test_stop_triggers_on_stop_callback() -> None:
+    seen: list[dict] = []
+
+    def on_stop(payload: dict) -> None:
+        seen.append(payload)
+
+    s = SessionStats(on_stop=on_stop)
+    s.start_session()
+    s.tick(face_active=True, emotion="happy")
+    time.sleep(0.03)
+    s.tick(face_active=True, emotion="happy")
+    s.stop_session()
+
+    assert len(seen) == 1
+    assert seen[0]["phase"] == "stopped"

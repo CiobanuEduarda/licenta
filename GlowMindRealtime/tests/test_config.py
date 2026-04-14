@@ -28,6 +28,7 @@ def test_from_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
         "API_HOST",
         "API_PORT",
         "API_CORS_ORIGINS",
+        "SESSION_HISTORY_DB",
     ):
         monkeypatch.delenv(key, raising=False)
     s = Settings.from_env()
@@ -43,6 +44,12 @@ def test_from_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert s.device == "cuda"
     assert s.camera_index == 2
     assert s.led_brightness == 0.5
+
+
+def test_from_env_custom_history_db(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SESSION_HISTORY_DB", "custom.sqlite3")
+    s = Settings.from_env()
+    assert s.session_history_db == "custom.sqlite3"
 
 
 def test_from_env_rejects_bad_float(monkeypatch: pytest.MonkeyPatch) -> None:

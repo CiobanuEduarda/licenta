@@ -88,6 +88,7 @@ class Settings:
     api_host: str = "127.0.0.1"
     api_port: int = 8765
     api_cors_origins: str = "*"
+    session_history_db: str = "glowmind_history.db"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -112,6 +113,7 @@ class Settings:
             api_host=_env_str("API_HOST", "127.0.0.1"),
             api_port=_env_int("API_PORT", 8765),
             api_cors_origins=_env_str("API_CORS_ORIGINS", "*"),
+            session_history_db=_env_str("SESSION_HISTORY_DB", "glowmind_history.db"),
         )
         _validate(s)
         return s
