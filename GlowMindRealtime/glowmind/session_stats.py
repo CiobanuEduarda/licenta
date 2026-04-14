@@ -134,5 +134,5 @@ class SessionStats:
                 "elapsed_s": round(elapsed, 2),
                 "emotion_pct": emotion_pct,
                 "timeline": list(self._samples),
-                "note": "Session ended — model/heuristic estimates only; not a clinical assessment.",
+                "note": "Session ended",
             }
