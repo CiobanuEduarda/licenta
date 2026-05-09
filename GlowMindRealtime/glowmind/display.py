@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import cv2
 
-# Romance dashboard palette as BGR (hex: #3b1012, #a93c49, #eaa488, #feeec5, #dfdfdf).
+# dashboard palette as BGR tuples (OpenCV uses BGR, not RGB)
 _BGR_BURGUNDY = (18, 16, 59)
 _BGR_ROSE = (73, 60, 169)
 _BGR_PEACH = (136, 164, 234)

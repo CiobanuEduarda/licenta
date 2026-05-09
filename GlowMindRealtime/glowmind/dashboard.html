@@ -930,7 +930,7 @@
     $("stopBtn").onclick = () => postSession("/session/stop");
     $("historyRefreshBtn").onclick = () => loadHistory();
     $("obsRefreshBtn").onclick = () => loadMetrics();
-    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const proto = location.protocol === "https:" ? "wss:" : "ws:"; 
     const wsUrl = proto + "//" + location.host + "/ws";
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => { $("conn").textContent = "Live"; $("conn").classList.remove("err"); };

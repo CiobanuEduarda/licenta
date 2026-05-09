@@ -1,0 +1,39 @@
+GlowMind — training scripts (read-only archive of notebook code)
+================================================================
+
+These .py files were auto-extracted from your Jupyter notebooks so you can
+browse training logic in the IDE without opening huge .ipynb files.
+
+They are NOT guaranteed to run as-is (paths point to Colab / Drive, and
+some cells use notebook magics like !cp or tqdm.notebook).
+
+Files (chronological / complexity):
+
+  01_emotion_cnn_baseline.py
+      Source: GlowMind_Emotion_Model.ipynb (early cell)
+      Small CNN (EmotionCNN), 64x64 crops, AffectNetSubset dataset.
+
+  02_resnet18_simple_fc_224.py
+      Source: GlowMind_Emotion_Model.ipynb
+      ResNet18 + single Linear head (2 outputs), 224x224, augmentations.
+
+  03_resnet18_160_imagenet_amp.py
+      Source: GlowMind_Emotion_Model.ipynb
+      ResNet18, 160x160, ImageNet normalize, mixed precision (AMP).
+
+  04_varesnet18_tanh_160.py
+      Source: GlowMind_Emotion_Model.ipynb
+      VAResNet wrapper (ResNet18 + Tanh on outputs), 15 epochs config.
+
+  05_resnet50_va_notebook_experiment.py
+      Source: GlowMind_Emotion_Model.ipynb (later cell)
+      Larger ResNet50 experiment inside the big notebook (e.g. resnet50_va_v4).
+
+  99_final_resnet50_finetune_last_training.py
+      Source: last_training.ipynb (main training cell)
+      Final pipeline: ResNet50 MLP head, CombinedLoss, EMA, test split,
+      outputs resnet50_va_finetune.pth — this matches what you report in the thesis.
+
+Original notebooks (full history, all cells):
+  - GlowMindRealtime/GlowMind_Emotion_Model.ipynb
+  - GlowMindRealtime/last_training.ipynb
