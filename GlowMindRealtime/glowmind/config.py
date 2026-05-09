@@ -45,6 +45,8 @@ def _parse_cors_origins(value: str) -> list[str]:
 
 
 def _validate(settings: Settings) -> None:
+    if settings.face_backend not in ("haar", "mediapipe"):
+        raise ValueError("face_backend must be one of: 'haar', 'mediapipe'")
     if settings.face_bbox_buffer < 0:
         raise ValueError("face_bbox_buffer must be >= 0")
     if not 0.0 <= settings.led_brightness <= 1.0:
@@ -73,6 +75,9 @@ class Settings:
     serial_baud: int = 115200
     camera_index: int = 1
     camera_fallback_index: int = 0
+    # Face backend: Haar cascade (default) or MediaPipe Face Mesh.
+    face_backend: str = "haar"
+    draw_face_mesh: bool = False
     # Match AffectNet crop margin in training (face box + buffer around Haar box).
     face_bbox_buffer: float = 0.1
     valence_offset: float = 0.0
@@ -100,6 +105,8 @@ class Settings:
             serial_baud=_env_int("SERIAL_BAUD", 115200),
             camera_index=_env_int("CAMERA_INDEX", 1),
             camera_fallback_index=_env_int("CAMERA_FALLBACK_INDEX", 0),
+            face_backend=_env_str("FACE_BACKEND", "haar").strip().lower(),
+            draw_face_mesh=_env_bool("DRAW_FACE_MESH", False),
             face_bbox_buffer=_env_float("FACE_BBOX_BUFFER", 0.1),
             valence_offset=_env_float("VALENCE_OFFSET", 0.0),
             valence_gain=_env_float("VALENCE_GAIN", 2.5),

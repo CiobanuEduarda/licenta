@@ -161,3 +161,22 @@ def draw_led_preview(frame, r: int, g: int, b: int) -> None:
         frame, (12, 12), (68, 48), (preview_rgb[2], preview_rgb[1], preview_rgb[0]), -1
     )
     cv2.putText(frame, "LED", (14, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.4, _BGR_CREAM, 1)
+
+
+def draw_face_mesh_landmarks(
+    frame,
+    landmarks_xy: list[tuple[int, int]],
+    *,
+    color: tuple[int, int, int] = _BGR_ROSE,
+    step: int = 2,
+) -> None:
+    """Draw a lightweight landmark overlay (MediaPipe Face Mesh).
+
+    We draw every `step`th point to keep preview responsive.
+    """
+    if not landmarks_xy:
+        return
+    s = max(1, int(step))
+    for i in range(0, len(landmarks_xy), s):
+        x, y = landmarks_xy[i]
+        cv2.circle(frame, (x, y), 1, color, -1, cv2.LINE_AA)

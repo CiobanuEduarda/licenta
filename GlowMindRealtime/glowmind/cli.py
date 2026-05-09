@@ -47,6 +47,10 @@ def main() -> None:
 
     try:
         run(settings, live_state=live, session_stats=session_stats, metrics=runtime_metrics)
+    except KeyboardInterrupt:
+        # Graceful stop on Ctrl+C (avoid printing a full traceback for an expected action).
+        log.info("Stopped by user (Ctrl+C)")
+        sys.exit(0)
     except FileNotFoundError as e:
         log.error("%s", e)
         sys.exit(1)

@@ -322,7 +322,8 @@ def main() -> None:
         if loaded is None:
             continue
         face_bgr, meta = loaded
-        inp = transform(face_bgr).unsqueeze(0).to(device)
+        face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
+        inp = transform(face_rgb).unsqueeze(0).to(device)
 
         with torch.no_grad():
             out = forward_va(model, inp)

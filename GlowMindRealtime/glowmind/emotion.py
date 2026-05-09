@@ -39,22 +39,38 @@ def ema(previous: float, new: float, alpha: float = 0.25) -> float:
 
 
 def va_to_emotion(valence: float, arousal: float) -> str:
-    """Map continuous valence/arousal to a discrete emotion label."""
     v = max(-1.0, min(1.0, valence))
     a = max(-1.0, min(1.0, arousal))
-    if abs(v) < 0.35 and abs(a) < 0.35:
+
+    # Neutral dead zone
+    if abs(v) < 0.25 and abs(a) < 0.25:
         return "neutral"
-    if v >= 0.4 and a >= 0.4:
-        return "excited" if a > 0.6 else "happy"
-    if v >= 0.4 and a <= -0.3:
+
+    # High arousal, negative valence → angry > anxious
+    if v <= -0.25 and a >= 0.25:
+        return "angry" if a >= 0.55 else "anxious"
+
+    # Low arousal, negative valence → tired > sad
+    if v <= -0.25 and a <= -0.25:
+        return "tired" if a <= -0.55 else "sad"
+
+    # Negative valence, neutral arousal → sad
+    if v <= -0.25:
+        return "sad"
+
+    # High arousal, positive valence → excited > happy
+    if v >= 0.25 and a >= 0.25:
+        return "excited" if (v >= 0.55 and a >= 0.55) else "happy"
+
+    # Low arousal, positive valence → calm
+    if v >= 0.25 and a <= -0.25:
         return "calm"
-    if v <= -0.4 and a >= 0.4:
-        return "anxious" if a > 0.5 else "angry"
-    if v <= -0.4 and a <= -0.3:
-        return "tired" if a < -0.5 else "sad"
-    if v > 0:
-        return "happy" if a > 0 else "calm"
-    return "angry" if a > 0 else "sad"
+
+    # Positive valence, neutral arousal → happy
+    if v >= 0.25:
+        return "happy"
+
+    return "neutral"
 
 
 def lerp_rgb(rgb1: RGB, rgb2: RGB, t: float) -> RGB:

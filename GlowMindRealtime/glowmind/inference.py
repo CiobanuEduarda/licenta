@@ -136,6 +136,12 @@ def forward_va(model: torch.nn.Module, batch: torch.Tensor) -> torch.Tensor:
 
 
 def face_transform() -> T.Compose:
+    """Transforms a face crop for ResNet-VA.
+
+    ``ToPILImage`` expects an RGB ``uint8`` array (H, W, 3). OpenCV ``frame``
+    crops are BGR — convert with ``cv2.cvtColor(..., cv2.COLOR_BGR2RGB)``
+    before calling this pipeline.
+    """
     return T.Compose(
         [
             T.ToPILImage(),

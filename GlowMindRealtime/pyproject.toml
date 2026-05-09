@@ -20,6 +20,8 @@ dependencies = [
 dev = ["pytest>=7.0", "httpx>=0.24"]
 # Tools for interpretability / analysis (Grad-CAM + plots)
 analysis = ["grad-cam>=1.5.5", "matplotlib>=3.7"]
+# Optional face-tracking backend (Face Mesh landmarks)
+vision = ["mediapipe>=0.10"]
 
 [project.scripts]
 glowmind = "glowmind.cli:main"

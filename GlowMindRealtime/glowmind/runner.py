@@ -13,6 +13,7 @@ from glowmind.config import Settings
 from glowmind.display import (
     draw_circumplex_mood_ring,
     draw_face_overlay,
+    draw_face_mesh_landmarks,
     draw_led_preview,
     open_capture,
 )
@@ -32,8 +33,8 @@ from glowmind.inference import (
     face_transform,
     load_face_cascade,
     load_model_weights,
-    select_primary_face,
 )
+from glowmind.face_backend import FaceDetection, build_face_backend
 from glowmind.runtime_metrics import RuntimeMetrics
 from glowmind.session_stats import SessionStats
 from glowmind.stream_state import LiveState
@@ -86,7 +87,8 @@ def _run_loop(
     if metrics is not None:
         metrics.set_model_ready(True)
 
-    face_cascade = load_face_cascade()
+    face_cascade = load_face_cascade() if settings.face_backend == "haar" else None
+    face_backend = build_face_backend(settings.face_backend, face_cascade)
     transform = face_transform()
 
     cap = open_capture(settings.camera_index, settings.camera_fallback_index)
@@ -118,18 +120,20 @@ def _run_loop(
                 break
 
             t = time.time() - start_time
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-            has_face = len(faces) > 0
+            det: FaceDetection | None = face_backend.detect(frame)
+            has_face = det is not None
 
             if has_face:
                 h_frame, w_frame = frame.shape[:2]
-                x, y, w, h = select_primary_face(faces, w_frame, h_frame)
+                assert det is not None
+                x, y, w, h = det.x, det.y, det.w, det.h
                 px, py, pw, ph = expand_face_bbox(
                     x, y, w, h, w_frame, h_frame, settings.face_bbox_buffer
                 )
-                face = frame[py : py + ph, px : px + pw]
-                inp = transform(face).unsqueeze(0).to(device)
+                # OpenCV frames are BGR; training / ToPILImage expect RGB.
+                face_bgr = frame[py : py + ph, px : px + pw]
+                face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
+                inp = transform(face_rgb).unsqueeze(0).to(device)
 
                 t_infer0 = time.perf_counter()
                 with torch.no_grad():
@@ -162,6 +166,8 @@ def _run_loop(
                 led.send_rgb(r, g, b)
 
                 draw_face_overlay(frame, x, y, w, h, emotion, v_s, a_s)
+                if settings.draw_face_mesh and det.landmarks_xy:
+                    draw_face_mesh_landmarks(frame, det.landmarks_xy, step=2)
                 last_v_plot, last_a_plot = v_display, a_display
                 va_trail.append((v_display, a_display))
                 if live_state is not None:
