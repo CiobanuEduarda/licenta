@@ -14,3 +14,7 @@ venv/
 
 # Model weights (large; keep locally or use Git LFS / release assets)
 *.pth
+
+# Notebooks (local experiments)
+GlowMindRealtime/GlowMind_Emotion_Model.ipynb
+GlowMindRealtime/last_training.ipynb

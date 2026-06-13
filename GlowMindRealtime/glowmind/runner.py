@@ -161,7 +161,10 @@ def _run_loop(
                 blend = min(1.0, settings.transition_speed * settings.frame_blend)
                 current_rgb = lerp_rgb(current_rgb, target_rgb, blend)
 
-                r, g, b = pulse_for_emotion(current_rgb, t, emotion)
+                if settings.led_pulse_enabled:
+                    r, g, b = pulse_for_emotion(current_rgb, t, emotion)
+                else:
+                    r, g, b = current_rgb
                 r, g, b = scale_for_led(r, g, b, settings.led_brightness)
                 led.send_rgb(r, g, b)
 
@@ -185,7 +188,10 @@ def _run_loop(
             else:
                 target_rgb = EMOTIONS["neutral"]
                 current_rgb = lerp_rgb(current_rgb, target_rgb, 0.02)
-                r, g, b = pulse_neutral_idle(current_rgb, t)
+                if settings.led_pulse_enabled:
+                    r, g, b = pulse_neutral_idle(current_rgb, t)
+                else:
+                    r, g, b = current_rgb
                 r, g, b = scale_for_led(r, g, b, settings.led_brightness)
                 led.send_rgb(r, g, b)
                 if live_state is not None:

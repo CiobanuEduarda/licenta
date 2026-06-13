@@ -21,6 +21,7 @@ def test_from_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
         "AROUSAL_OFFSET",
         "AROUSAL_GAIN",
         "LED_BRIGHTNESS",
+        "LED_PULSE_ENABLED",
         "EMA_ALPHA",
         "TRANSITION_SPEED",
         "FRAME_BLEND",
@@ -74,6 +75,12 @@ def test_from_env_api_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("API_ENABLED", "false")
     s = Settings.from_env()
     assert s.api_enabled is False
+
+
+def test_from_env_led_pulse_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LED_PULSE_ENABLED", "false")
+    s = Settings.from_env()
+    assert s.led_pulse_enabled is False
 
 
 def test_cors_origin_list() -> None:

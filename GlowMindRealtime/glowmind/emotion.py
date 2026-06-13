@@ -7,16 +7,18 @@ from typing import Tuple
 
 RGB = Tuple[int, int, int]
 
-# (valence, arousal) zones → label; colors are RGB for display/LED math
+# (valence, arousal) zones → label; colors are RGB for display/LED math.
+# Saturated primaries/secondaries so hues stay distinct on dim NeoPixel strips
+# (e.g. Arduino setBrightness ~40); muted multi-channel mixes read as muddy gray.
 EMOTIONS: dict[str, RGB] = {
-    "sad": (30, 60, 180),
-    "neutral": (50, 200, 100),
-    "happy": (255, 200, 50),
-    "calm": (50, 180, 200),
-    "angry": (255, 80, 40),
-    "anxious": (180, 60, 220),
-    "excited": (255, 100, 150),
-    "tired": (80, 80, 120),
+    "sad": (0, 50, 255),
+    "neutral": (0, 255, 100),
+    "happy": (255, 200, 0),
+    "calm": (0, 180, 255),
+    "angry": (255, 20, 0),
+    "anxious": (180, 0, 255),
+    "excited": (255, 0, 100),
+    "tired": (80, 0, 160),
 }
 
 # Seconds per full breathing cycle per label

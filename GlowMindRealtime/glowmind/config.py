@@ -71,7 +71,7 @@ class Settings:
 
     device: str = "cpu"
     model_weights: str = "resnet50_va_finetune.pth"
-    serial_port: str = "/dev/cu.usbmodem11101"
+    serial_port: str = "/dev/cu.usbmodem1101"
     serial_baud: int = 115200
     camera_index: int = 1
     camera_fallback_index: int = 0
@@ -85,6 +85,7 @@ class Settings:
     arousal_offset: float = 0.0
     arousal_gain: float = 2.0
     led_brightness: float = 0.22
+    led_pulse_enabled: bool = True
     ema_alpha: float = 0.25
     transition_speed: float = 4.0
     frame_blend: float = 0.033  # ~30 FPS assumption for color lerp
@@ -101,7 +102,7 @@ class Settings:
         s = cls(
             device=_env_str("DEVICE", "cpu"),
             model_weights=_env_str("MODEL_WEIGHTS", "resnet50_va_finetune.pth"),
-            serial_port=_env_str("SERIAL_PORT", "/dev/cu.usbmodem11101"),
+            serial_port=_env_str("SERIAL_PORT", "/dev/cu.usbmodem1101"),
             serial_baud=_env_int("SERIAL_BAUD", 115200),
             camera_index=_env_int("CAMERA_INDEX", 1),
             camera_fallback_index=_env_int("CAMERA_FALLBACK_INDEX", 0),
@@ -113,6 +114,7 @@ class Settings:
             arousal_offset=_env_float("AROUSAL_OFFSET", 0.0),
             arousal_gain=_env_float("AROUSAL_GAIN", 2.0),
             led_brightness=_env_float("LED_BRIGHTNESS", 0.22),
+            led_pulse_enabled=_env_bool("LED_PULSE_ENABLED", True),
             ema_alpha=_env_float("EMA_ALPHA", 0.25),
             transition_speed=_env_float("TRANSITION_SPEED", 4.0),
             frame_blend=_env_float("FRAME_BLEND", 0.033),
